@@ -19,6 +19,7 @@
 Mostly internal.
 """
 
+import qiskit_metal_internal
 from .toolbox_python.attr_dict import Dict
 from ._defaults import DefaultMetalOptions, DefaultOptionsRenderer
 
@@ -29,7 +30,10 @@ renderers_to_load = Dict(
              class_name='QQ3DRenderer'),
     gds=Dict(path_name='qiskit_metal.renderers.renderer_gds.gds_renderer',
              class_name='QGDSRenderer'),
-)
+    aedt_q3d=Dict(
+        path_name=
+        'qiskit_metal_internal.renderers_internal.render_pyaedt.q3d_renderer_aedt',
+        class_name='QQ3Dpyaedt'))
 """
 Define the renderes to load. Just provide the module names here.
 """

@@ -99,7 +99,7 @@ class QRendererAnalysis(QRenderer):
         #    self.render_element_poly(element)
 
         # else:
-        #    self.logger.error('RENDERER ERROR: Unkown element {element}')
+        #    self.logger.error('RENDERER ERROR: Unknown element {element}')
 
     @abstractmethod
     def render_element_path(self, path):

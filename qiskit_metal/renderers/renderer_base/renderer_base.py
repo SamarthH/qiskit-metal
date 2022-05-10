@@ -392,7 +392,7 @@ class QRenderer(ABC):
         Call any initialization (single run) step required to setup the renderer for the first execution,
         such as connecting to some API or COM, or importing the correct material libraries, etc.
 
-        Implementation must return boolean True if succesful. False otherwise.
+        Implementation must return boolean True if successful. False otherwise.
         """
         return True
 
