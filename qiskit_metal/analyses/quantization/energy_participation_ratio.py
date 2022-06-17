@@ -167,6 +167,13 @@ class EPRanalysis(QAnalysis):
         # wipe data from the previous run (if any)
         self.clear_data()
 
+        try:
+            inductance_per_square = self.sim.renderer.inductance_per_square  # This is in nH/square
+            self.sim.renderer.pinfo.assign_perfE = self.sim.renderer.assign_perfE
+            self.sim.renderer.pinfo.inductance_per_square = inductance_per_square
+        except Exception as e:
+            print(e)
+
         self.get_stored_energy(no_junctions)
         if not no_junctions:
             self.run_analysis()

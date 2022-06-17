@@ -1735,7 +1735,10 @@ class QAnsysRenderer(QRendererAnalysis):
             energy_elec = eprd.calc_energy_electric()
             energy_elec_substrate = eprd.calc_energy_electric(
                 None, self.pinfo.dissipative["dielectrics_bulk"][0])
-            energy_mag = eprd.calc_energy_magnetic()
+            energy_mag_no_ke = eprd.calc_energy_magnetic()
+            energy_mag_ke = eprd.calc_energy_kinetic_inductance_without_junction(
+                None)
+            energy_mag = energy_mag_no_ke + energy_mag_ke
 
             return energy_elec, energy_elec_substrate, energy_mag
         self.logger.error("dielectrics_bulk needs to be defined")

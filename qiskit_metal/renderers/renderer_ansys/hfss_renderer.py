@@ -79,7 +79,9 @@ class QHFSSRenderer(QAnsysRenderer):
                       port_list: Union[list, None] = None,
                       jj_to_port: Union[list, None] = None,
                       ignored_jjs: Union[list, None] = None,
-                      box_plus_buffer: bool = True):
+                      box_plus_buffer: bool = True,
+                      kinetic_inductance_params: Union[float, dict,
+                                                       None] = None):
         """Initiate rendering of components in design contained in selection,
         assuming they're valid. Components are rendered before the chips they
         reside on, and subtraction of negative shapes is performed at the very
@@ -126,7 +128,7 @@ class QHFSSRenderer(QAnsysRenderer):
         junctions are specified in the form (component_name, element_name)
         in the list ignored_jjs.
 
-        The final parameter, box_plus_buffer, determines how the chip is drawn.
+        The parameter, box_plus_buffer, determines how the chip is drawn.
         When set to True, it takes the minimum rectangular bounding box of all
         rendered components and adds a buffer of x_buffer_width_mm and
         y_buffer_width_mm horizontally and vertically, respectively, to the
@@ -139,6 +141,15 @@ class QHFSSRenderer(QAnsysRenderer):
         faster because it doesn't require calculating a bounding box, it runs
         the risk of rendered components being too close to the edge of the chip
         or even falling outside its boundaries.
+
+        The final parameter, kinetic_inductance_params, determines if kinetic
+        inductance is included in the simulations. If None, no kinetic inductance
+        is included. If not None, it should be either a float (with value equal to
+        the surface inductance), or a dictionary with two keys,
+        "london_penetration_depth" which should have the london penetration depth
+        of the superconductor in nm, and "thickness" which should be the thickness
+        of the film. If not None, this has undefined behaviour if there is more than
+        1 (one) chip.
 
         Args:
             selection (Union[list, None], optional): List of components to
@@ -155,6 +166,12 @@ class QHFSSRenderer(QAnsysRenderer):
             box_plus_buffer (bool): Either calculate a bounding box based on
                                         the location of rendered geometries
                                         or use chip size from design class.
+            kinetic_inductance_params (Union[float, dict, None], optional):
+                                    Specifies if Kinetic Inductance is to be used,
+                                    and if so, should be either the surface
+                                    inductance (float), or a dictionary
+                                    specifying the "london_penetration_depth"
+                                    and the "thickness" in nm.
         """
         self.qcomp_ids, self.case = self.get_unique_component_ids(selection)
 
@@ -191,7 +208,7 @@ class QHFSSRenderer(QAnsysRenderer):
         if port_list:
             self.create_ports(port_list)
         self.add_mesh()
-        self.metallize()
+        self.metallize(kinetic_inductance_params)
 
     def create_ports(self, port_list: list):
         """Add ports and their respective impedances in Ohms to designated pins
@@ -402,9 +419,51 @@ class QHFSSRenderer(QAnsysRenderer):
         induc_line = induc_line.rename('JJ_' + inductor_name + '_')
         induc_line.show_direction = True
 
-    def metallize(self):
-        """Assign metallic property to all shapes in self.assign_perfE list."""
-        self.modeler.assign_perfect_E(self.assign_perfE)
+    def metallize(self, kinetic_inductance_params):
+        """
+        Assign metallic property to all shapes in self.assign_perfE list
+        if kinetic_inductance_params is None, else assign a RLC port to
+        mimic Kinetic Inductance
+        """
+        if kinetic_inductance_params is None:
+            self.modeler.assign_perfect_E(self.assign_perfE)
+        else:
+            chip_list = self.get_chip_names()
+            # added this quick hack for the case of flipchip device.
+            # current self.get_chip_names only renders chips whose components are to be rendered.
+            # so if you happen to only draw a qubit only, then the other chip (C_chip) does not get rendered because get_chip_names only returns Q_chip
+            # I hope this gets a prettier fix in the future
+            if self.design._metadata.design_name == 'FlipChip_Device':
+                chip_list = self.design.chips.keys()
+            for chip_name in chip_list:
+                p = self.design.get_chip_size(chip_name)
+                z_coord = parse_units([p["center_z"]])[0]
+
+                # Defining Surface inductance per square for use later in EPR Analysis
+                self.inductance_per_square = kinetic_inductance_params if type(
+                    kinetic_inductance_params
+                ) is float else (1.25663706212e-6) * kinetic_inductance_params[
+                    "london_penetration_depth"] / np.tanh(
+                        kinetic_inductance_params["thickness"] /
+                        kinetic_inductance_params["london_penetration_depth"])
+
+                inductance = str(
+                    self.inductance_per_square * 1e3 * self.cw_x[chip_name] /
+                    self.cw_y[chip_name]) + 'pH'
+                start, end = [
+                    self.cc_x[chip_name] - self.cw_x[chip_name] / 2,
+                    self.cc_y[chip_name], z_coord
+                ], [
+                    self.cc_x[chip_name] + self.cw_x[chip_name] / 2,
+                    self.cc_y[chip_name], z_coord
+                ]
+                self.modeler._make_lumped_rlc(0,
+                                              inductance,
+                                              0,
+                                              start,
+                                              end,
+                                              ["Objects:=", self.assign_perfE],
+                                              name="KineticInductance")
 
     def add_drivenmodal_design(self, name: str, connect: bool = True):
         """
