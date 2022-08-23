@@ -172,7 +172,7 @@ class EPRanalysis(QAnalysis):
             self.sim.renderer.pinfo.assign_perfE = self.sim.renderer.assign_perfE
             self.sim.renderer.pinfo.inductance_per_square = inductance_per_square
         except Exception as e:
-            print(e)
+            pass
 
         self.get_stored_energy(no_junctions)
         if not no_junctions:

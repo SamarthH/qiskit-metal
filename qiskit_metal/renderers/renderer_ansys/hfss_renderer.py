@@ -182,6 +182,7 @@ class QHFSSRenderer(QAnsysRenderer):
 
         self.chip_subtract_dict = defaultdict(set)
         self.assign_perfE = []
+        self.assign_perfE_chip = []
         self.assign_mesh = []
         self.assign_port_mesh = []
         self.jj_lumped_ports = {}
@@ -442,7 +443,9 @@ class QHFSSRenderer(QAnsysRenderer):
                 # Defining Surface inductance per square for use later in EPR Analysis
                 self.inductance_per_square = kinetic_inductance_params if type(
                     kinetic_inductance_params
-                ) is float else (1.25663706212e-6) * kinetic_inductance_params[
+                ) is float else (
+                    1.25663706212e-6  # This is mu_0/4\pi
+                ) * kinetic_inductance_params[
                     "london_penetration_depth"] / np.tanh(
                         kinetic_inductance_params["thickness"] /
                         kinetic_inductance_params["london_penetration_depth"])
@@ -457,13 +460,20 @@ class QHFSSRenderer(QAnsysRenderer):
                     self.cc_x[chip_name] + self.cw_x[chip_name] / 2,
                     self.cc_y[chip_name], z_coord
                 ]
-                self.modeler._make_lumped_rlc(0,
-                                              inductance,
-                                              0,
-                                              start,
-                                              end,
-                                              ["Objects:=", self.assign_perfE],
-                                              name="KineticInductance")
+
+                objs_in_chip = []
+                for i in range(len(self.assign_perfE)):
+                    if self.assign_perfE_chip[i] == chip_name:
+                        objs_in_chip.append(self.assign_perfE[i])
+
+                if objs_in_chip:
+                    self.modeler._make_lumped_rlc(0,
+                                                  inductance,
+                                                  0,
+                                                  start,
+                                                  end,
+                                                  ["Objects:=", objs_in_chip],
+                                                  name="KineticInductance")
 
     def add_drivenmodal_design(self, name: str, connect: bool = True):
         """
