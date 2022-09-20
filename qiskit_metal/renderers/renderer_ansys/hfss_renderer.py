@@ -453,27 +453,29 @@ class QHFSSRenderer(QAnsysRenderer):
                 inductance = str(
                     self.inductance_per_square * 1e3 * self.cw_x[chip_name] /
                     self.cw_y[chip_name]) + 'pH'
-                start, end = [
+                start, end = np.around([
                     self.cc_x[chip_name] - self.cw_x[chip_name] / 2,
                     self.cc_y[chip_name], z_coord
-                ], [
+                ], 9).tolist(), np.around([
                     self.cc_x[chip_name] + self.cw_x[chip_name] / 2,
                     self.cc_y[chip_name], z_coord
-                ]
+                ], 9).tolist()
 
                 objs_in_chip = []
                 for i in range(len(self.assign_perfE)):
                     if self.assign_perfE_chip[i] == chip_name:
                         objs_in_chip.append(self.assign_perfE[i])
 
+                # print(chip_name, start, end, objs_in_chip)
+
                 if objs_in_chip:
-                    self.modeler._make_lumped_rlc(0,
-                                                  inductance,
-                                                  0,
-                                                  start,
-                                                  end,
-                                                  ["Objects:=", objs_in_chip],
-                                                  name="KineticInductance")
+                    self.modeler._make_lumped_rlc(
+                        0,
+                        inductance,
+                        0,
+                        start,
+                        end, ["Objects:=", objs_in_chip],
+                        name="KineticInductance_" + chip_name)
 
     def add_drivenmodal_design(self, name: str, connect: bool = True):
         """
