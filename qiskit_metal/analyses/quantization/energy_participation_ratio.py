@@ -160,7 +160,7 @@ class EPRanalysis(QAnalysis):
             self.sim.run(*args, **kwargs)
         return self.run_epr()
 
-    def run_epr(self, no_junctions=False):
+    def run_epr(self, no_junctions=False, **kwargs):
         """Executes the epr analysis from the extracted eigenmode,
         and based on the setup values.
         """
@@ -176,8 +176,8 @@ class EPRanalysis(QAnalysis):
 
         self.get_stored_energy(no_junctions)
         if not no_junctions:
-            self.run_analysis()
-            self.spectrum_analysis(self.setup.cos_trunc, self.setup.fock_trunc)
+            self.run_analysis(**kwargs)
+            self.spectrum_analysis(self.setup.cos_trunc, self.setup.fock_trunc,**kwargs)
             try:
                 self.report_hamiltonian(self.setup.sweep_variable)
             except AttributeError:
@@ -219,17 +219,17 @@ class EPRanalysis(QAnalysis):
         energy_mag % of energy_elec_all  = {self.energy_mag / self.energy_elec * 100 :.1f}%
         """)
 
-    def run_analysis(self):
+    def run_analysis(self,**kwargs):
         """Short-cut to the same-name method found in renderers.ansys_renderer.py.
         Eventually, the analysis code needs to be only here, and the renderer method deprecated.
         """
-        self.sim.renderer.epr_run_analysis()
+        self.sim.renderer.epr_run_analysis(**kwargs)
 
-    def spectrum_analysis(self, cos_trunc: int = 8, fock_trunc: int = 7):
+    def spectrum_analysis(self, cos_trunc: int = 8, fock_trunc: int = 7, **kwargs):
         """Short-cut to the same-name method found in renderers.ansys_renderer.py.
         Eventually, the analysis code needs to be only here, and the renderer method deprecated.
         """
-        self.sim.renderer.epr_spectrum_analysis(cos_trunc, fock_trunc)
+        self.sim.renderer.epr_spectrum_analysis(cos_trunc, fock_trunc, **kwargs)
 
     def report_hamiltonian(self, sweep_variable, numeric=True):
         """Short-cut to the same-name method found in renderers.ansys_renderer.py.
