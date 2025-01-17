@@ -12,20 +12,20 @@ class Airbridge_forGDS(QComponent):
     Default Options:
         * crossover_length: '22um' -- Distance between the two outer squares (aka bridge length).
                                       Usually, this should be the same length as (cpw_width + 2 * cpw_gap)
-        * bridge_width: '7.5um' -- Width of bridge element
-        * inner_length: '8um' -- Length of inner square.
-        * outer_length: '11um' -- Length of outer square.
+        * inner_length: '8um' -- Length of inner square. Equal to bridge width
+        * outer_buffer: '3um' -- Buffer on top of inner squares and bridge for the outer rectangle
         * square_layer: 30 -- GDS layer of inner squares.
-        * bridge_layer: 31 -- GDS layer of bridge + outer squares.
+        * bridge_layer: 31 -- GDS layer of bridge.
+        * outer_layer: 32 -- GDS layer of outer bridge.
     """
 
     # Default drawing options
     default_options = Dict(crossover_length='22um',
-                           bridge_width='7.5um',
                            inner_length='8um',
-                           outer_length='11um',
+                           outer_buffer='3um',
                            square_layer=30,
-                           bridge_layer=31)
+                           bridge_layer=31,
+                           outer_layer =32)
     """Default drawing options"""
 
     # Name prefix of component, if user doesn't provide name
@@ -37,38 +37,31 @@ class Airbridge_forGDS(QComponent):
         # Parse options
         p = self.parse_options()
         crossover_length = p.crossover_length
-        bridge_width = p.bridge_width
+        bridge_width = p.inner_length
         inner_length = p.inner_length
-        outer_length = p.outer_length
-
+        outer_buffer = p.outer_buffer
         # Make the inner square structure
         left_inside = draw.rectangle(inner_length, inner_length, 0, 0)
         right_inside = draw.translate(left_inside,
-                                      crossover_length / 2 + outer_length / 2,
+                                      crossover_length / 2 + inner_length / 2,
                                       0)
         left_inside = draw.translate(left_inside,
-                                     -(crossover_length / 2 + outer_length / 2),
+                                     -(crossover_length / 2 + inner_length / 2),
                                      0)
 
         inside_struct = draw.union(left_inside, right_inside)
 
         # Make the outer square structure
-        left_outside = draw.rectangle(outer_length, outer_length, 0, 0)
-        right_outside = draw.translate(left_outside,
-                                       crossover_length / 2 + outer_length / 2,
-                                       0)
-        left_outside = draw.translate(
-            left_outside, -(crossover_length / 2 + outer_length / 2), 0)
+        outside_struct = draw.rectangle(crossover_length+2*inner_length+2*outer_buffer, bridge_width+2*outer_buffer, 0, 0)
 
         # Make the bridge structure
-        bridge = draw.rectangle(crossover_length, bridge_width, 0, 0)
-        bridge_struct = draw.union(bridge, left_outside, right_outside)
+        bridge_struct = draw.rectangle(crossover_length+2*inner_length, bridge_width, 0, 0)
 
         ### Final adjustments to allow repositioning
-        final_design = [bridge_struct, inside_struct]
+        final_design = [bridge_struct, inside_struct, outside_struct]
         final_design = draw.rotate(final_design, p.orientation, origin=(0, 0))
         final_design = draw.translate(final_design, p.pos_x, p.pos_y)
-        bridge_struct, inside_struct = final_design
+        bridge_struct, inside_struct, outside_struct = final_design
 
         ### Add everything as a QGeometry
         self.add_qgeometry('poly', {'bridge_struct': bridge_struct},
@@ -76,4 +69,7 @@ class Airbridge_forGDS(QComponent):
                            subtract=False)
         self.add_qgeometry('poly', {'inside_struct': inside_struct},
                            layer=p.square_layer,
+                           subtract=False)
+        self.add_qgeometry('poly', {'outside_struct': outside_struct},
+                           layer=p.outer_layer,
                            subtract=False)
