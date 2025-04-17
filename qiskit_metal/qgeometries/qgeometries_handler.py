@@ -142,7 +142,9 @@ ELEMENT_COLUMNS = dict(
     # curved = dict(
     # __renderers__= dict(
     # )
-    # )
+    # ),
+    ################################################
+    wirebond=dict(height=float, thickness=float, __renderers__=dict()),
 )
 """Dictionary that specifies the column names of various element tables."""
 

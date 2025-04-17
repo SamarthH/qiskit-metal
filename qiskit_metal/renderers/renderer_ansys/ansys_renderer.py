@@ -1065,12 +1065,12 @@ class QAnsysRenderer(QRendererAnalysis):
             table = table[mask]
 
         for _, qgeom in table.iterrows():
-            self.render_element(qgeom, bool(table_type == "junction"))
+            self.render_element(qgeom, bool(table_type == "junction"), bool(table_type == "wirebond"))
 
         if table_type == "path":
             self.auto_wirebonds(table)
 
-    def render_element(self, qgeom: pd.Series, is_junction: bool):
+    def render_element(self, qgeom: pd.Series, is_junction: bool, is_wirebond: bool):
         """Render an individual shape whose properties are listed in a row of
         QGeometry table. Junction elements are handled separately from non-
         junction elements, as the former consist of two rendered shapes, not
@@ -1083,6 +1083,8 @@ class QAnsysRenderer(QRendererAnalysis):
         qc_shapely = qgeom.geometry
         if is_junction:
             self.render_element_junction(qgeom)
+        elif is_wirebond:
+            self.render_element_wirebond(qgeom)
         else:
             if isinstance(qc_shapely, shapely.geometry.Polygon):
                 self.render_element_poly(qgeom)
@@ -1143,6 +1145,27 @@ class QAnsysRenderer(QRendererAnalysis):
         )
         poly_jj = poly_jj.rename("JJ_" + name + "_")
         poly_jj.show_direction = True
+    
+    def render_element_wirebond(self, qgeom: pd.Series):
+        ansys_options = dict(transparency=0.0)
+        
+        qc_shapely = qgeom.geometry  # shapely geom
+        qc_chip_z = parse_units(self.design.get_chip_z(qgeom.chip))
+        
+        points = parse_units(list(qc_shapely.coords))
+
+        self.modeler.draw_wirebond(
+                            pos=(points[0]+points[1])/2,
+                            ori=points[1] - points[0],
+                            width=points[1] - points[0],
+                            height=qgeom.height,
+                            z=qc_chip_z,
+                            wire_diameter=qgeom.thickness,
+                            NumSides=4,
+                            name="extra_wb",
+                            material="pec",
+                            solve_inside=False,
+                        )
 
     def render_element_poly(self, qgeom: pd.Series):
         """Render a closed polygon.
