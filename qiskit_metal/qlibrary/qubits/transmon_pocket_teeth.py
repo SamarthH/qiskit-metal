@@ -112,6 +112,7 @@ class TransmonPocketTeeth(BaseQubit):
         coupled_pad_height='150um',
         coupled_pad_width='20um',
         coupled_pad_gap='50um',  # One can arrange the gap between the teeth.
+        fillet='0um',
         # orientation = 90 has dipole aligned along the +X axis, while 0 aligns to the +Y axis
         _default_connection_pads=Dict(
             pad_gap='15um',
@@ -197,14 +198,13 @@ class TransmonPocketTeeth(BaseQubit):
         pad_top_tmp = draw.union([circ_left_top, pad_top, circ_right_top])
         # The coupler pads are only created if low_W=0 and low_H=+1
         for name in self.options.connection_pads:
-            if self.options.connection_pads[name][
-                    'loc_W'] == 0 and self.options.connection_pads[name][
-                        'loc_H'] == +1:
+            if int(self.options.connection_pads[name]['loc_W']) == 0 and int(self.options.connection_pads[name]['loc_H']) == +1:
+                coup_pads = draw.union([coupled_pad_right, coupled_pad_left])
+                coup_pads = draw.translate(coup_pads, self.p.connection_pads[name].pad_cpw_shift,0)
                 pad_top_tmp = draw.union([
-                    circ_left_top, coupled_pad_left, pad_top, coupled_pad_right,
-                    circ_right_top
+                    pad_top_tmp, coup_pads
                 ])
-        pad_top = pad_top_tmp
+        pad_top = pad_top_tmp.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
         # Round part for the bottom pad. And again you should unite all of them.
         pad_bot = draw.translate(pad, 0, -(pad_height + pad_gap) / 2.)
         circ_left_bot = draw.Point(-pad_width / 2, -(pad_height + pad_gap) /
@@ -215,13 +215,21 @@ class TransmonPocketTeeth(BaseQubit):
                                     2.).buffer(pad_height / 2,
                                                resolution=16,
                                                cap_style=CAP_STYLE.round)
-        pad_bot = draw.union([pad_bot, circ_left_bot, circ_right_bot])
-
+        pad_bot_tmp = draw.union([pad_bot, circ_left_bot, circ_right_bot])
+        for name in self.options.connection_pads:
+            if int(self.options.connection_pads[name]['loc_W']) == 0 and int(self.options.connection_pads[name]['loc_H']) == -1:
+                coup_pads = draw.union([coupled_pad_right, coupled_pad_left])
+                coup_pads = draw.translate(coup_pads, self.p.connection_pads[name].pad_cpw_shift,0)
+                coup_pads = draw.scale(coup_pads, 1,-1, origin=(0,0))
+                pad_bot_tmp = draw.union([
+                    pad_bot_tmp, coup_pads
+                ])
+        pad_bot = pad_bot_tmp.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
         rect_jj = draw.LineString([(0, -pad_gap / 2), (0, +pad_gap / 2)])
         # the draw.rectangle representing the josephson junction
         # rect_jj = draw.rectangle(p.inductor_width, pad_gap)
-
-        rect_pk = draw.rectangle(p.pocket_width, p.pocket_height)
+        pocket_fillet = min(p.pocket_width, p.pocket_height)/8
+        rect_pk = draw.rectangle(p.pocket_width, p.pocket_height).buffer(pocket_fillet).buffer(-pocket_fillet).buffer(-pocket_fillet).buffer(pocket_fillet)
 
         # Rotate and translate all qgeometry as needed.
         # Done with utility functions in Metal 'draw_utility' for easy rotation/translation
@@ -288,18 +296,18 @@ class TransmonPocketTeeth(BaseQubit):
                 {(p.pocket_width-p.pad_width)/2+cpw_extend}    {pad_cpw_shift+cpw_width/2+pocket_rise}\
                                             )""")
         else:
-            connector_pad = draw.rectangle(pad_width, pad_height, 0,
+            connector_pad = draw.rectangle(pad_width, pad_height, pad_cpw_shift,
                                            pad_height / 2)
             connector_wire_path = draw.LineString(
-                [[0, pad_height],
+                [[pad_cpw_shift, pad_height],
                  [
-                     0,
+                     pad_cpw_shift,
                      (p.pocket_width / 2 - p.pad_height - p.pad_gap / 2 -
                       pc.pad_gap) + cpw_extend
                  ]])
 
         # Position the connector, rotate and translate
-        objects = [connector_pad, connector_wire_path]
+        objects = [connector_pad.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet), connector_wire_path]
 
         if loc_W == 0:
             loc_Woff = 1

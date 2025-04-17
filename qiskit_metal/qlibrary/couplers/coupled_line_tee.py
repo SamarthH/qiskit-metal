@@ -55,6 +55,7 @@ class CoupledLineTee(QComponent):
         * mirror: False -- Flips the hanger around the y-axis
         * open_termination: True -- sets if the termination of the second line at the coupling side
           is an open to ground or short to ground
+        * draw_prime: True -- sets if the primary cpw should be drawn
     """
     component_metadata = Dict(short_name='cpw', _qgeometry_table_path='True')
     """Component metadata"""
@@ -70,7 +71,8 @@ class CoupledLineTee(QComponent):
                            down_length='100um',
                            fillet='25um',
                            mirror=False,
-                           open_termination=True)
+                           open_termination=True,
+                           draw_prime =True)
     """Default connector options"""
 
     TOOLTIP = """Generates a three pin (+) 
@@ -84,6 +86,8 @@ class CoupledLineTee(QComponent):
     def make(self):
         """Build the component."""
         p = self.p
+
+        print(p.draw_prime)
 
         prime_cpw_length = p.coupling_length * 2
         second_flip = 1
@@ -126,11 +130,12 @@ class CoupledLineTee(QComponent):
         [prime_cpw, second_cpw, second_cpw_etch] = c_items
 
         #Add to qgeometry tables
-        self.add_qgeometry('path', {'prime_cpw': prime_cpw},
-                           width=p.prime_width)
-        self.add_qgeometry('path', {'prime_cpw_sub': prime_cpw},
-                           width=p.prime_width + 2 * p.prime_gap,
-                           subtract=True)
+        if p.draw_prime:
+            self.add_qgeometry('path', {'prime_cpw': prime_cpw},
+                            width=p.prime_width)
+            self.add_qgeometry('path', {'prime_cpw_sub': prime_cpw},
+                            width=p.prime_width + 2 * p.prime_gap,
+                            subtract=True)
         self.add_qgeometry('path', {'second_cpw': second_cpw},
                            width=p.second_width,
                            fillet=p.fillet)
@@ -143,14 +148,15 @@ class CoupledLineTee(QComponent):
         prime_pin_list = prime_cpw.coords
         second_pin_list = second_cpw.coords
 
-        self.add_pin('prime_start',
-                     points=np.array(prime_pin_list[::-1]),
-                     width=p.prime_width,
-                     input_as_norm=True)
-        self.add_pin('prime_end',
-                     points=np.array(prime_pin_list),
-                     width=p.prime_width,
-                     input_as_norm=True)
+        if p.draw_prime:
+            self.add_pin('prime_start',
+                        points=np.array(prime_pin_list[::-1]),
+                        width=p.prime_width,
+                        input_as_norm=True)
+            self.add_pin('prime_end',
+                        points=np.array(prime_pin_list),
+                        width=p.prime_width,
+                        input_as_norm=True)
         self.add_pin('second_end',
                      points=np.array(second_pin_list[1:]),
                      width=p.second_width,
