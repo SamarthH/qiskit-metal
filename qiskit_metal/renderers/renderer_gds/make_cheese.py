@@ -411,13 +411,22 @@ class Cheesing():
                             self.grid_maxy,
                             self.delta_y,
                             dtype=float).tolist()
-
+        
+        # Edited by Samarth here
+        
         if self.one_hole_cell is not None:
             for x_loc in x_holes:
                 for y_loc in y_holes:
                     gather_holes_cell.add(
                         gdspy.CellReference(self.one_hole_cell,
                                             origin=(x_loc, y_loc)))
+        
+        # if self.one_hole_cell is not None:
+        #     gather_holes_cell.add(gdspy.CellArray(self.one_hole_cell,
+        #                                           columns = len(x_holes),
+        #                                           rows = len(y_holes),
+        #                                           spacing= [self.delta_x, self.delta_y],
+        #                                           ))
 
         return gather_holes_cell
 
