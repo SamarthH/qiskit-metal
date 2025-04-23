@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from cycler import cycler
-from .patch import PolygonPatch
+from .patch import PolygonPatch, Polygon
 from IPython.display import display
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import \
@@ -53,8 +53,16 @@ if TYPE_CHECKING:
 
 __all__ = ['QMplRenderer']
 
-to_poly_patch = np.vectorize(PolygonPatch)
 
+to_poly_patch = np.vectorize(PolygonPatch)
+# def to_poly_patch(xarr):
+#     out = []
+#     for x in xarr:
+#         try:
+#             out.append(PolygonPatch(x))
+#         except:
+#             pass
+#     return out
 
 class QMplRenderer():
     """Matplotlib handle all rendering of an axis.
@@ -180,7 +188,7 @@ class QMplRenderer():
         if len(poly_array) > 0:
             poly_array = to_poly_patch(poly_array)
             ax.add_collection(PatchCollection(poly_array, **mpl_kw))
-
+            
     @property
     def qgeometry(self) -> 'QGeometryTables':
         """Return the qgeometry of the design."""
@@ -243,22 +251,23 @@ class QMplRenderer():
             ax (Axes): The axes
         """
         for element_type, table in self.qgeometry.tables.items():
-            # Mask the table
-            table = table[self.get_mask(table)]
+            if not element_type == 'wirebond':
+                # Mask the table
+                table = table[self.get_mask(table)]
 
-            # subtracted
-            mask = table['subtract'] == True
-            render_func = getattr(self, f'render_{element_type}')
-            render_func(table[mask], ax, subtracted=True)
+                # subtracted
+                mask = table['subtract'] == True
+                render_func = getattr(self, f'render_{element_type}')
+                render_func(table[mask], ax, subtracted=True)
 
-            # non-subtracted
-            table1 = table[~mask]
-            # TODO: do by layer and color
-            # self.get_color_num()
+                # non-subtracted
+                table1 = table[~mask]
+                # TODO: do by layer and color
+                # self.get_color_num()
 
-            # TODO: Check that the function exists
-            render_func = getattr(self, f'render_{element_type}')
-            render_func(table1, ax, subtracted=False)
+                # TODO: Check that the function exists
+                render_func = getattr(self, f'render_{element_type}')
+                render_func(table1, ax, subtracted=False)
 
     def render_junction(self,
                         table: pd.DataFrame,

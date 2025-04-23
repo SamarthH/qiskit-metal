@@ -289,12 +289,18 @@ class TransmonPocketTeeth(BaseQubit):
             connector_pad = draw.rectangle(pad_width, pad_height,
                                            -pad_width / 2, pad_height / 2)
             # Connector CPW wire
-            connector_wire_path = draw.wkt.loads(f"""LINESTRING (\
-                0 {pad_cpw_shift+cpw_width/2}, \
-                {pc.pad_cpw_extent}                           {pad_cpw_shift+cpw_width/2}, \
-                {(p.pocket_width-p.pad_width)/2-pocket_extent} {pad_cpw_shift+cpw_width/2+pocket_rise}, \
-                {(p.pocket_width-p.pad_width)/2+cpw_extend}    {pad_cpw_shift+cpw_width/2+pocket_rise}\
-                                            )""")
+            # connector_wire_path = draw.wkt.loads(f"""LINESTRING (\
+            #     0 {pad_cpw_shift+cpw_width/2}, \
+            #     {pc.pad_cpw_extent}                           {pad_cpw_shift+cpw_width/2}, \
+            #     {(p.pocket_width-p.pad_width)/2-pocket_extent} {pad_cpw_shift+cpw_width/2+pocket_rise}, \
+            #     {(p.pocket_width-p.pad_width)/2+cpw_extend}    {pad_cpw_shift+cpw_width/2+pocket_rise}\
+            #                                 )""")
+            connector_wire_path = draw.LineString([
+                [0, pad_cpw_shift+cpw_width/2], 
+                [pc.pad_cpw_extent, pad_cpw_shift+cpw_width/2],
+                [(p.pocket_width-p.pad_width)/2-pocket_extent, pad_cpw_shift+cpw_width/2+pocket_rise],
+                [(p.pocket_width-p.pad_width)/2+cpw_extend, pad_cpw_shift+cpw_width/2+pocket_rise]
+            ])
         else:
             connector_pad = draw.rectangle(pad_width, pad_height, pad_cpw_shift,
                                            pad_height / 2)
@@ -302,8 +308,7 @@ class TransmonPocketTeeth(BaseQubit):
                 [[pad_cpw_shift, pad_height],
                  [
                      pad_cpw_shift,
-                     (p.pocket_width / 2 - p.pad_height - p.pad_gap / 2 -
-                      pc.pad_gap) + cpw_extend
+                     (p.pocket_width / 2) + cpw_extend
                  ]])
 
         # Position the connector, rotate and translate
