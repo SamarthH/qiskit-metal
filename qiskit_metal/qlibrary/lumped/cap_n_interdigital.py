@@ -80,7 +80,8 @@ class CapNInterdigital(QComponent):
                            cap_gap_ground='6um',
                            finger_length='20um',
                            finger_count='5',
-                           cap_distance='50um')
+                           cap_distance='50um',
+                           fillet = '5um')
     """Default connector options"""
 
     TOOLTIP = """Generates a two pin (+) structure
@@ -132,6 +133,10 @@ class CapNInterdigital(QComponent):
             2 * p.cap_gap_ground, 0, -p.cap_distance -
             (p.cap_gap + 2 * p.cap_width + p.finger_length) / 2)
 
+        if 'fillet' in p:
+            cap_body = cap_body.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
+            cap_etch = cap_etch.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
+        
         #CPW
         north_cpw = draw.LineString([[0, 0], [0, -p.cap_distance]])
 

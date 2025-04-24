@@ -72,6 +72,7 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
         cross_length='200um',
         cross_gap='20um',
         chip='main',
+        fillet='5um',
         _default_connection_pads=Dict(
             connector_type='0',  # 0 = Claw type, 1 = gap type
             claw_length='30um',
@@ -80,9 +81,9 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
             claw_gap='6um',
             claw_cpw_length='40um',
             claw_cpw_width='10um',
-            connector_location=
-            '0'  # 0 => 'west' arm, 90 => 'north' arm, 180 => 'east' arm
-        ))
+            connector_location= '0',  # 0 => 'west' arm, 90 => 'north' arm, 180 => 'east' arm
+        )
+        )
     """Default options."""
 
     component_metadata = Dict(short_name='Cross',
@@ -123,6 +124,10 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
 
         cross = cross_line.buffer(cross_width / 2, cap_style=2)
         cross_etch = cross.buffer(cross_gap, cap_style=3, join_style=2)
+
+        if 'fillet' in p:
+            cross = cross.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
+            cross_etch = cross_etch.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
 
         # The junction/SQUID
         #rect_jj = draw.rectangle(cross_width, cross_gap)
@@ -193,11 +198,23 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
                                      t_claw_height / 2 - c_w)
             claw_base = claw_base.difference(claw_subtract)
 
-            connector_arm = draw.shapely.ops.unary_union([claw_base, claw_cpw])
+            if 'fillet' in p:
+                connector_arm = draw.shapely.ops.unary_union([claw_base.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
+                                                              claw_cpw])
+            else:
+                connector_arm = draw.shapely.ops.unary_union([claw_base, claw_cpw])
             connector_etcher = draw.buffer(connector_arm, c_g)
         else:
             connector_arm = draw.box(0, -c_w / 2, -4 * c_w - c_c_l, c_w / 2)
             connector_etcher = draw.buffer(connector_arm, c_g)
+
+        if 'fillet' in p:
+            connector_etcher = draw.shapely.ops.unary_union([connector_etcher.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
+                                                             # draw.buffer(claw_subtract, c_g),
+                                                             draw.box(0, -t_claw_height / 2 + c_w+c_g, c_l+c_g,-t_claw_height / 2 + c_w),
+                                                             draw.box(0, t_claw_height / 2 - c_w, c_l+c_g,t_claw_height / 2 - c_w-c_g),
+                                                            ])
+            # connector_etcher = draw.box(c_l, -t_claw_height / 2 + c_w+c_g, c_l+c_g,t_claw_height / 2 - c_w-c_g)
 
         # Making the pin for  tracking (for easy connect functions).
         # Done here so as to have the same translations and rotations as the connector. Could
