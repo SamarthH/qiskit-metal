@@ -79,7 +79,9 @@ class QHFSSRenderer(QAnsysRenderer):
                       port_list: Union[list, None] = None,
                       jj_to_port: Union[list, None] = None,
                       ignored_jjs: Union[list, None] = None,
-                      box_plus_buffer: bool = True):
+                      box_plus_buffer: bool = True,
+                      inductance_per_square_nH: float = None,
+                      ):
         """Initiate rendering of components in design contained in selection,
         assuming they're valid. Components are rendered before the chips they
         reside on, and subtraction of negative shapes is performed at the very
@@ -165,6 +167,7 @@ class QHFSSRenderer(QAnsysRenderer):
 
         self.chip_subtract_dict = defaultdict(set)
         self.assign_perfE = []
+        self.assign_perfE_comps = []
         self.assign_mesh = []
         self.assign_port_mesh = []
         self.jj_lumped_ports = {}
@@ -184,7 +187,7 @@ class QHFSSRenderer(QAnsysRenderer):
             self.add_endcaps(open_pins +
                              [(qcomp, pin) for qcomp, pin, _ in port_list])
         else:
-            self.add_endcaps(open_pins)
+            self.add_endcaps(open_pins)     
 
         self.render_chips(box_plus_buffer=box_plus_buffer)
         self.subtract_from_ground()
@@ -192,6 +195,56 @@ class QHFSSRenderer(QAnsysRenderer):
             self.create_ports(port_list)
         self.add_mesh()
         self.metallize()
+        self.add_kinetic_inductance(inductance_per_square_nH)
+    
+    def add_kinetic_inductance(self, inductance_per_square_nH):
+        if inductance_per_square_nH is None:
+            return
+        
+        self.inductance_per_square_nH = inductance_per_square_nH
+        self.pinfo.inductance_per_square = inductance_per_square_nH
+
+        chip_list = self.get_chip_names()
+        perfE_by_chip = {chip:[] for chip in chip_list}
+        perfE_by_chip_comps = {chip:[] for chip in chip_list}
+        bb_lims = {chip:[] for chip in chip_list}
+        for el, el_comps in zip(self.assign_perfE, self.assign_perfE_comps):
+            perfE_by_chip[el_comps.chip].append(el)
+            perfE_by_chip_comps[el_comps.chip].append(el_comps)
+        
+        for chip in chip_list:
+            min_x_main = min_y_main = float("inf")
+            max_x_main = max_y_main = float("-inf")
+            for qcomp in perfE_by_chip_comps[chip]:
+                try:
+                    if 'component' in qcomp:
+                        min_x, min_y, max_x, max_y = parse_units(self.design._components[qcomp.component].qgeometry_bounds())
+                    else:
+                        min_x, min_y, max_x, max_y = qcomp.qgeometry_bounds()
+                    print(qcomp, min_x, min_y, max_x, max_y)
+                except Exception as e:
+                    print(qcomp)
+                    print(qcomp.component)
+                    print(qcomp.keys())
+                    print(qcomp.qgeometry_bounds)
+                    raise ValueError(e)
+                min_x_main = min(min_x, min_x_main)
+                min_y_main = min(min_y, min_y_main)
+                max_x_main = max(max_x, max_x_main)
+                max_y_main = max(max_y, max_y_main)
+            bb_lims[chip] = [min_x_main, max_x_main, min_y_main , max_y_main]
+        
+        print(bb_lims)
+        chip_inductance = {chip: inductance_per_square_nH*(bb_lims[chip][1]-bb_lims[chip][0])/(bb_lims[chip][3]-bb_lims[chip][2]) for chip in chip_list}
+        chip_line = {chip: [[bb_lims[chip][0], (bb_lims[chip][2]+bb_lims[chip][3])/2, self.design.get_chip_z(chip)],
+                            [bb_lims[chip][1], (bb_lims[chip][2]+bb_lims[chip][3])/2, self.design.get_chip_z(chip)]] for chip in chip_list}
+        
+        for chip in chip_list:
+            self.modeler._make_lumped_rlc(
+                0, f'{chip_inductance[chip]}nH', 0, chip_line[chip][0], chip_line[chip][1], ["Objects:=", perfE_by_chip[chip]], name=f'KinInd_{chip}'
+            )
+
+
 
     def create_ports(self, port_list: list):
         """Add ports and their respective impedances in Ohms to designated pins
@@ -405,6 +458,7 @@ class QHFSSRenderer(QAnsysRenderer):
     def metallize(self):
         """Assign metallic property to all shapes in self.assign_perfE list."""
         self.modeler.assign_perfect_E(self.assign_perfE)
+
 
     def add_drivenmodal_design(self, name: str, connect: bool = True):
         """

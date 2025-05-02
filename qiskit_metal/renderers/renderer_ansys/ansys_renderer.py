@@ -134,7 +134,7 @@ class QAnsysRenderer(QRendererAnalysis):
         y_buffer_width_mm=0.2,  # Buffer between max/min y and edge of ground plane, in mm
         wb_threshold = '400um',
         wb_offset = '0um',
-        wb_size = 5,
+        wb_size = 2,
         plot_ansys_fields_options = Dict(
             name="NAME:Mag_E1",
             UserSpecifyName='0',
@@ -978,6 +978,7 @@ class QAnsysRenderer(QRendererAnalysis):
         selection: Union[list, None] = None,
         open_pins: Union[list, None] = None,
         box_plus_buffer: bool = True,
+        inductance_per_square_nH: float = None,
     ):
         """Initiate rendering of components in design contained in selection,
         assuming they're valid. Components are rendered before the chips they
@@ -1028,10 +1029,14 @@ class QAnsysRenderer(QRendererAnalysis):
 
         self.chip_subtract_dict = defaultdict(set)
         self.assign_perfE = []
+        self.assign_perfE_comps = []
         self.assign_mesh = []
 
         self.render_tables()
         self.add_endcaps(open_pins)
+
+        if inductance_per_square_nH is not None:
+            self.pinfo.inductance_per_square = inductance_per_square_nH
 
         self.render_chips(box_plus_buffer=box_plus_buffer)
         self.subtract_from_ground()
@@ -1242,6 +1247,7 @@ class QAnsysRenderer(QRendererAnalysis):
         # Potentially add to list of elements to metallize
         elif not qgeom["helper"]:
             self.assign_perfE.append(name)
+            self.assign_perfE_comps.append(qgeom)
 
     def render_element_path(self, qgeom: pd.Series):
         """Render a path-type element.
@@ -1325,6 +1331,7 @@ class QAnsysRenderer(QRendererAnalysis):
 
         elif qgeom["width"] and (not qgeom["helper"]):
             self.assign_perfE.append(name)
+            self.assign_perfE_comps.append(qgeom)
 
     def add_endcaps(self, open_pins: Union[list, None] = None):
         """Create endcaps (rectangular cutouts) for all pins in the list
@@ -1569,6 +1576,9 @@ class QAnsysRenderer(QRendererAnalysis):
             # Any layer which has subtract=True qgeometries will have a ground plane
             # TODO: Material property assignment may become layer-dependent.
             self.assign_perfE.append(f"ground_{chip_name}_plane")
+            min_x, max_x = self.cc_x[chip_name] - self.cw_x[chip_name]/2, self.cc_x[chip_name] + self.cw_x[chip_name]/2
+            min_y, max_y = self.cc_y[chip_name] - self.cw_y[chip_name]/2, self.cc_y[chip_name] + self.cw_y[chip_name]/2
+            self.assign_perfE_comps.append(Dict(chip=chip_name, qgeometry_bounds=(lambda:[min_x, min_y, max_x, max_y])))
 
     def subtract_from_ground(self):
         """For each chip, subtract all "negative" shapes residing on its
@@ -1766,7 +1776,8 @@ class QAnsysRenderer(QRendererAnalysis):
 
     def epr_run_analysis(self,
                          junctions: dict = None,
-                         dissipatives: dict = None):
+                         dissipatives: dict = None,
+                         modes: list = None):
         """Executes the EPR analysis
         pinfo must have a valid list of junctions and dissipatives to compute the energy stored
         in the system. So please provide them here, or using epr_start()
@@ -1779,9 +1790,13 @@ class QAnsysRenderer(QRendererAnalysis):
         """
         if junctions is not None or dissipatives is not None:
             self.epr_start(junctions, dissipatives)
-        self.epr_distributed_analysis.do_EPR_analysis()
+        self.epr_distributed_analysis.do_EPR_analysis(modes=modes)
 
-    def epr_spectrum_analysis(self, cos_trunc: int = 8, fock_trunc: int = 7):
+    def epr_spectrum_analysis(self,
+                              cos_trunc: int = 8,
+                              fock_trunc: int = 7,
+                              print_result: bool = None,
+                              modes: List = None):
         """Core epr analysis method.
 
         Args:
@@ -1790,8 +1805,11 @@ class QAnsysRenderer(QRendererAnalysis):
         """
         self.epr_quantum_analysis = epr.QuantumAnalysis(
             self.epr_distributed_analysis.data_filename)
-        self.epr_quantum_analysis.analyze_all_variations(cos_trunc=cos_trunc,
-                                                         fock_trunc=fock_trunc)
+        self.epr_quantum_analysis.analyze_all_variations(
+            cos_trunc=cos_trunc,
+            fock_trunc=fock_trunc,
+            print_result=print_result,
+            modes=modes)
 
     def epr_report_hamiltonian(self,
                                swp_variable: str = "variation",
