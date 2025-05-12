@@ -230,7 +230,7 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
                     draw.box(-c_w+c_g - c_c_l*0.5, -c_c_w / 2, -c_w+c_g, c_c_w / 2).buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
                 ])
                 connector_etcher = draw.shapely.ops.unary_union([
-                    draw.box(-c_w+c_g - c_c_l, -c_c_w / 2, -c_w+c_g - c_c_l + 2*p.fillet, c_c_w / 2).buffer(c_g,cap_style='square',join_style='mitre'),
+                    draw.box(-c_w+c_g - c_c_l, -c_c_w / 2, -c_w+c_g - c_c_l + 4*p.fillet, c_c_w / 2).buffer(c_g,cap_style='square',join_style='mitre'),
                     draw.box(-c_w+c_g - c_c_l + 4*p.fillet, -c_c_w / 2, -c_w+c_g, c_c_w / 2).buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet).buffer(c_g),
                 ])
             else:
