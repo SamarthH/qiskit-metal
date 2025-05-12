@@ -203,6 +203,7 @@ class QHFSSRenderer(QAnsysRenderer):
         
         self.inductance_per_square_nH = inductance_per_square_nH
         self.pinfo.inductance_per_square = inductance_per_square_nH
+        self.pinfo.assign_perfE = self.assign_perfE
 
         chip_list = self.get_chip_names()
         perfE_by_chip = {chip:[] for chip in chip_list}
@@ -221,7 +222,7 @@ class QHFSSRenderer(QAnsysRenderer):
                         min_x, min_y, max_x, max_y = parse_units(self.design._components[qcomp.component].qgeometry_bounds())
                     else:
                         min_x, min_y, max_x, max_y = qcomp.qgeometry_bounds()
-                    print(qcomp, min_x, min_y, max_x, max_y)
+                    # print(qcomp, min_x, min_y, max_x, max_y)
                 except Exception as e:
                     print(qcomp)
                     print(qcomp.component)

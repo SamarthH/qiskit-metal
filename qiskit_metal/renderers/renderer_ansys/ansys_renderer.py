@@ -1247,7 +1247,8 @@ class QAnsysRenderer(QRendererAnalysis):
         # Potentially add to list of elements to metallize
         elif not qgeom["helper"]:
             self.assign_perfE.append(name)
-            self.assign_perfE_comps.append(qgeom)
+            if hasattr(self,'assign_perfE_comps'):
+                self.assign_perfE_comps.append(qgeom)
 
     def render_element_path(self, qgeom: pd.Series):
         """Render a path-type element.
@@ -1331,7 +1332,8 @@ class QAnsysRenderer(QRendererAnalysis):
 
         elif qgeom["width"] and (not qgeom["helper"]):
             self.assign_perfE.append(name)
-            self.assign_perfE_comps.append(qgeom)
+            if hasattr(self,'assign_perfE_comps'):
+                self.assign_perfE_comps.append(qgeom)
 
     def add_endcaps(self, open_pins: Union[list, None] = None):
         """Create endcaps (rectangular cutouts) for all pins in the list
@@ -1578,7 +1580,8 @@ class QAnsysRenderer(QRendererAnalysis):
             self.assign_perfE.append(f"ground_{chip_name}_plane")
             min_x, max_x = self.cc_x[chip_name] - self.cw_x[chip_name]/2, self.cc_x[chip_name] + self.cw_x[chip_name]/2
             min_y, max_y = self.cc_y[chip_name] - self.cw_y[chip_name]/2, self.cc_y[chip_name] + self.cw_y[chip_name]/2
-            self.assign_perfE_comps.append(Dict(chip=chip_name, qgeometry_bounds=(lambda:[min_x, min_y, max_x, max_y])))
+            if hasattr(self,'assign_perfE_comps'):
+                self.assign_perfE_comps.append(Dict(chip=chip_name, qgeometry_bounds=(lambda:[min_x, min_y, max_x, max_y])))
 
     def subtract_from_ground(self):
         """For each chip, subtract all "negative" shapes residing on its

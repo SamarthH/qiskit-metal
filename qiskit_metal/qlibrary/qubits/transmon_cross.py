@@ -150,7 +150,7 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
                            chip=chip)
         self.add_qgeometry('junction',
                            dict(rect_jj=rect_jj),
-                           width=cross_width,
+                           width=cross_width - (0 if 'fillet' not in p else 2*p.fillet),
                            chip=chip)
 
 
@@ -197,31 +197,49 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
             claw_subtract = draw.box(0, -t_claw_height / 2 + c_w, c_l,
                                      t_claw_height / 2 - c_w)
             claw_base = claw_base.difference(claw_subtract)
-
+            
+            connector_arm_old = draw.shapely.ops.unary_union([claw_base, claw_cpw])
             if 'fillet' in p:
                 connector_arm = draw.shapely.ops.unary_union([claw_base.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
                                                               claw_cpw])
             else:
                 connector_arm = draw.shapely.ops.unary_union([claw_base, claw_cpw])
-            connector_etcher = draw.buffer(connector_arm, c_g)
-        else:
-            connector_arm = draw.box(0, -c_w / 2, -4 * c_w - c_c_l, c_w / 2)
-            connector_etcher = draw.buffer(connector_arm, c_g)
+            connector_etcher = draw.buffer(connector_arm_old, c_g)
 
-        if 'fillet' in p:
-            connector_etcher = draw.shapely.ops.unary_union([connector_etcher.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
-                                                             # draw.buffer(claw_subtract, c_g),
-                                                             draw.box(0, -t_claw_height / 2 + c_w+c_g, c_l+c_g,-t_claw_height / 2 + c_w),
-                                                             draw.box(0, t_claw_height / 2 - c_w, c_l+c_g,t_claw_height / 2 - c_w-c_g),
-                                                            ])
+            if 'fillet' in p and 'fillet_etch' in p and self.options.fillet_etch == 'True':
+                connector_etcher = draw.shapely.ops.unary_union([connector_etcher.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
+                                                                # draw.buffer(claw_subtract, c_g),
+                                                                draw.box(0, -t_claw_height / 2 + c_w+c_g, c_l+c_g,-t_claw_height / 2 + c_w),
+                                                                draw.box(0, t_claw_height / 2 - c_w, c_l+c_g,t_claw_height / 2 - c_w-c_g),
+                                                                ])
+                
+            port_line = draw.LineString([(-c_c_l - c_w, -c_c_w / 2),
+                                     (-c_c_l - c_w, c_c_w / 2)])
+        else:
+            if 'fillet' in p:
+                connector_arm = draw.shapely.ops.unary_union([
+                    draw.box(-c_w+c_g - c_c_l, -c_c_w / 2, -c_w+c_g - c_c_l*0.4, c_c_w / 2),
+                    draw.box(-c_w+c_g - c_c_l*0.5, -c_c_w / 2, -c_w+c_g, c_c_w / 2).buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet),
+                ])
+                connector_etcher = draw.shapely.ops.unary_union([
+                    draw.box(-c_w+c_g - c_c_l, -c_c_w / 2, -c_w+c_g - c_c_l + 2*p.fillet, c_c_w / 2).buffer(c_g,cap_style='square',join_style='mitre'),
+                    draw.box(-c_w+c_g - c_c_l + 4*p.fillet, -c_c_w / 2, -c_w+c_g, c_c_w / 2).buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet).buffer(c_g),
+                ])
+            else:
+                connector_arm = draw.box(-c_w+c_g, -c_c_w / 2, -c_w +c_g - c_c_l, c_c_w / 2)
+                connector_etcher = draw.buffer(connector_arm, c_g)
+            
+            port_line = draw.LineString([(-c_w +c_g - c_c_l, -c_c_w / 2),
+                                     (-c_w +c_g - c_c_l, c_c_w / 2)])
+
             # connector_etcher = draw.box(c_l, -t_claw_height / 2 + c_w+c_g, c_l+c_g,t_claw_height / 2 - c_w-c_g)
 
         # Making the pin for  tracking (for easy connect functions).
         # Done here so as to have the same translations and rotations as the connector. Could
         # extract from the connector later, but since allowing different connector types,
         # this seems more straightforward.
-        port_line = draw.LineString([(-c_c_l - c_w, -c_c_w / 2),
-                                     (-c_c_l - c_w, c_c_w / 2)])
+        # port_line = draw.LineString([(-c_c_l - c_w, -c_c_w / 2),
+        #                              (-c_c_l - c_w, c_c_w / 2)])
 
         claw_rotate = 0
         if con_loc > 135:
