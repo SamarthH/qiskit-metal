@@ -73,6 +73,7 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
         cross_gap='20um',
         chip='main',
         fillet='5um',
+        layer_pocket = '1',
         _default_connection_pads=Dict(
             connector_type='0',  # 0 = Claw type, 1 = gap type
             claw_length='30um',
@@ -144,10 +145,17 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
 
         # generate qgeometry
         self.add_qgeometry('poly', dict(cross=cross), chip=chip)
-        self.add_qgeometry('poly',
-                           dict(cross_etch=cross_etch),
-                           subtract=True,
-                           chip=chip)
+        if 'layer_pocket' in self.options:
+            self.add_qgeometry('poly',
+                               dict(cross_etch=cross_etch),
+                               subtract=True,
+                               chip=chip,
+                               layer = self.options.layer_pocket)
+        else:
+            self.add_qgeometry('poly',
+                               dict(cross_etch=cross_etch),
+                               subtract=True,
+                               chip=chip)
         self.add_qgeometry('junction',
                            dict(rect_jj=rect_jj),
                            width=cross_width - (0 if 'fillet' not in p else 2*p.fillet),
@@ -259,9 +267,15 @@ class TransmonCross(BaseQubit):  # pylint: disable=invalid-name
         # Generates qgeometry for the connector pads
         self.add_qgeometry('poly', {f'{name}_connector_arm': connector_arm},
                            chip=chip)
-        self.add_qgeometry('poly',
-                           {f'{name}_connector_etcher': connector_etcher},
-                           subtract=True,
-                           chip=chip)
+        if 'layer_pocket' in self.options:
+            self.add_qgeometry('poly',
+                               {f'{name}_connector_etcher': connector_etcher},
+                               subtract=True,
+                               chip=chip, layer=self.options.layer_pocket)
+        else:
+            self.add_qgeometry('poly',
+                               {f'{name}_connector_etcher': connector_etcher},
+                               subtract=True,
+                               chip=chip)
 
         self.add_pin(name, port_line.coords, c_c_w)
