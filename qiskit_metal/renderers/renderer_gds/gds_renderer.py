@@ -1552,10 +1552,16 @@ class QGDSRenderer(QRenderer):
             lambda x: isinstance(x, shapely.geometry.linestring.LineString))]
         path_sub_geo = path_sub_df['geometry'].tolist()
         path_sub_width = path_sub_df['width'].tolist()
+
+        # print(f'{path_sub_df.keys()=}')
+
+        path_sub_fillet = path_sub_df['fillet'].tolist()
+        
         #for n in range(len(path_sub_geo)):
         for index, _ in enumerate(path_sub_geo):
+            # print(f'{index}, {path_sub_fillet[index]=}')
             path_sub_geo[index] = path_sub_geo[index].buffer(
-                path_sub_width[index] / 2,
+                path_sub_width[index] / 2,# if np.isnan(path_sub_fillet[index]) else path_sub_fillet[index],
                 cap_style=style_cap,
                 join_style=style_join)
 
