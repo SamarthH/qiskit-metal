@@ -1560,10 +1560,53 @@ class QGDSRenderer(QRenderer):
         #for n in range(len(path_sub_geo)):
         for index, _ in enumerate(path_sub_geo):
             # print(f'{index}, {path_sub_fillet[index]=}')
+            if not np.isnan(path_sub_fillet[index]):
+                # If need to fillet, then follow the gdspy specification for filleting
+                npts_fill_full_period = 100
+
+                pts_x, pts_y = path_sub_geo[index].xy
+                pts_x = np.array(pts_x)
+                pts_y = np.array(pts_y)
+                pts_complex = pts_x + 1.j*pts_y
+                pts_diff = np.diff(pts_complex)
+                ang_list = np.angle(pts_diff)
+                ang_diff = np.angle(pts_diff[1:]/pts_diff[:-1])
+
+                r = path_sub_fillet[index]
+
+                final_pts = [pts_complex[0]]
+
+                for idxp, diff_ang in enumerate(ang_diff):
+                    if diff_ang==0:
+                        final_pts.append(pts_complex[idxp+1])
+                    else:
+                        adiff_ang = np.abs(diff_ang)
+                        npts_fill = int(np.ceil(adiff_ang/2./np.pi * npts_fill_full_period))
+                        l_dist = r*np.tan(adiff_ang/2.)
+                        # if np.abs(pts_diff[idxp+1]) < l_dist or np.abs(pts_diff[idxp]) < l_dist:
+                        #     r_now = min(np.abs(pts_diff[idxp+1]), np.abs(pts_diff[idxp]))/np.tan(diff_ang/2.)
+                        #     l_dist = r_now*np.tan(diff_ang/2.)
+                        #     npts_fill = int(np.ceil(np.abs(diff_ang)/2./np.pi * npts_fill_full_period *r_now/r))
+                        # else:
+                        r_now = r
+
+                        npts_fill = 10
+                        ang_pts_fill = np.linspace(0, diff_ang, npts_fill) - np.sign(diff_ang)*np.pi/2 + ang_list[idxp]
+                        arc_pts = r_now*np.exp(1.j*ang_pts_fill)
+                        arc_pts = arc_pts - arc_pts[0] + pts_complex[idxp+1] - l_dist*pts_diff[idxp]/np.abs(pts_diff[idxp])
+                        final_pts = final_pts + list(arc_pts)
+                final_pts.append(pts_complex[-1])
+                final_pts = np.array(final_pts)
+                pts_x = final_pts.real
+                pts_y = final_pts.imag
+
+                path_sub_geo[index] = shapely.geometry.linestring.LineString([(xpt,ypt) for xpt,ypt in zip(pts_x,pts_y)])
+
             path_sub_geo[index] = path_sub_geo[index].buffer(
-                path_sub_width[index] / 2,# if np.isnan(path_sub_fillet[index]) else path_sub_fillet[index],
+                path_sub_width[index] / 2,
                 cap_style=style_cap,
                 join_style=style_join)
+            
 
         #  Need to add buffer_size, cap style, and join style to default options
         combo_list = path_sub_geo + poly_sub_geo
