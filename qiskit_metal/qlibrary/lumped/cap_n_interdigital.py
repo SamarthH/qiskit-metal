@@ -12,6 +12,8 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+# Edited by Samarth Hawaldar
+
 from qiskit_metal import draw, Dict
 from qiskit_metal.qlibrary.core import QComponent
 import numpy as np
@@ -63,6 +65,8 @@ class CapNInterdigital(QComponent):
         * finger_length: '20um' -- The depth of the finger islands of the capacitor
         * finger_count: '5' -- Number of fingers in the capacitor
         * cap_distance: '50um' -- Distance of the north point of the capacitor from the north pin
+        * scale_cpw_width_and_gap: True -- Whether to scale the cpw width and gap to maintain a constant impedance towards and away from the capacitor. Uses the ratio of the north CPW for calculations and overrides the value in cap_gap_ground
+        * scaling_distance: '50um' -- Distance on each side over which to scale cpw width and gap
     """
     component_metadata = Dict(short_name='cpw',
                               _qgeometry_table_poly='True',
@@ -81,6 +85,8 @@ class CapNInterdigital(QComponent):
                            finger_length='20um',
                            finger_count='5',
                            cap_distance='50um',
+                           scale_cpw_width_and_gap= True,
+                           scaling_distance= '50um',
                            fillet = '5um')
     """Default connector options"""
 
@@ -93,6 +99,11 @@ class CapNInterdigital(QComponent):
         """Build the component."""
         p = self.p
         N = int(p.finger_count)
+
+        if self.options.scale_cpw_width_and_gap:
+            cap_extent = N * p.cap_width + (N - 1) * p.cap_gap
+            cap_gap_full = cap_extent/2 * (p.north_gap*2 + p.north_width)/p.north_width
+            p.cap_gap_ground = cap_gap_full - cap_extent/2
 
         #Finger Capacitor
         cap_box = draw.rectangle(N * p.cap_width + (N - 1) * p.cap_gap,
@@ -128,10 +139,37 @@ class CapNInterdigital(QComponent):
             (p.cap_gap + 2 * p.cap_width + p.finger_length) / 2)
 
         cap_etch = draw.rectangle(
-            N * p.cap_width + (N - 1) * p.cap_gap + 2 * p.cap_gap_ground,
+            N * p.cap_width + (N - 1) * p.cap_gap + 2*p.cap_gap_ground,
             p.cap_gap + 2 * p.cap_width + p.finger_length +
-            2 * p.cap_gap_ground, 0, -p.cap_distance -
+            (2 * p.cap_gap if not self.options.scale_cpw_width_and_gap else 0.), 0, -p.cap_distance -
             (p.cap_gap + 2 * p.cap_width + p.finger_length) / 2)
+        
+        if self.options.scale_cpw_width_and_gap:
+            cap_body, cap_etch = draw.translate([cap_body, cap_etch], 0, -p.scaling_distance)
+            scale_poly_body = draw.Polygon([
+                                (p.north_width/2, -p.cap_distance),
+                                (cap_extent/2, -p.scaling_distance -p.cap_distance),
+                                (-cap_extent/2, -p.scaling_distance -p.cap_distance),
+                                (-p.north_width/2, -p.cap_distance),
+                            ])
+            cap_body = draw.union([
+                cap_body,
+                scale_poly_body,
+                draw.scale(scale_poly_body, yfact=-1, origin = (0,-p.scaling_distance -p.cap_distance - (p.cap_gap + 2 * p.cap_width + p.finger_length) / 2))
+                ])
+            
+            scale_poly_etch = draw.Polygon([
+                    (p.north_width/2 + p.north_gap, -p.cap_distance),
+                    (cap_gap_full, -p.scaling_distance -p.cap_distance),
+                    (-cap_gap_full, -p.scaling_distance -p.cap_distance),
+                    (-p.north_width/2 - p.north_gap, -p.cap_distance),
+                ])
+            
+            cap_etch = draw.union([
+                cap_etch,
+                scale_poly_etch,
+                draw.scale(scale_poly_etch, yfact=-1, origin = (0,-p.scaling_distance -p.cap_distance - (p.cap_gap + 2 * p.cap_width + p.finger_length) / 2))
+                ])
 
         if 'fillet' in p:
             cap_body = cap_body.buffer(p.fillet).buffer(-p.fillet).buffer(-p.fillet).buffer(p.fillet)
@@ -149,6 +187,9 @@ class CapNInterdigital(QComponent):
                  0, -2 * p.cap_distance -
                  (p.cap_gap + 2 * p.cap_width + p.finger_length)
              ]])
+        
+        if self.options.scale_cpw_width_and_gap:
+            south_cpw = draw.translate(south_cpw, 0, -2*p.scaling_distance)
 
         #Rotate and Translate
         c_items = [north_cpw, south_cpw, cap_body, cap_etch]
