@@ -290,10 +290,11 @@ class Cheesing():
         geometry. The cells are added to the Top_<chip_name>.
         """
 
-        gather_holes_cell = self._get_all_holes()
-        diff_holes_cell = self._subtract_keepout_from_hole_grid(
-            gather_holes_cell)
-        self.lib.remove(gather_holes_cell)
+        # gather_holes_cell = self._get_all_holes()
+        # diff_holes_cell = self._subtract_keepout_from_hole_grid(
+        #     gather_holes_cell)
+        # self.lib.remove(gather_holes_cell)
+        diff_holes_cell = self._get_holes_and_subtract_from_keepout()
 
         cell_name = f'TOP_{self.chip_name}_{self.layer}'
         cell_layer = self.lib.cells[cell_name]
@@ -429,6 +430,62 @@ class Cheesing():
         #                                           ))
 
         return gather_holes_cell
+
+    def _get_holes_and_subtract_from_keepout(self) -> gdspy.library.Cell:
+        gather_holes_cell_name = f'Gather_holes_{self.chip_name}_{self.layer}'
+        gather_holes_cell = self.lib.new_cell(gather_holes_cell_name,
+                                              overwrite_duplicate=True)
+
+        x_holes = np.arange(self.grid_minx,
+                            self.grid_maxx,
+                            self.delta_x,
+                            dtype=float).tolist()
+        y_holes = np.arange(self.grid_miny,
+                            self.grid_maxy,
+                            self.delta_y,
+                            dtype=float).tolist()
+
+        temp_keepout_chip_layer_cell = f'temp_keepout_{self.chip_name}_{self.layer}'
+        temp_keepout_cell = self.lib.new_cell(temp_keepout_chip_layer_cell,
+                                              overwrite_duplicate=True)
+        temp_keepout_cell.add(self.nocheese_gds)
+        diff_holes_cell_name = f'TOP_{self.chip_name}_{self.layer}_Cheese_diff'
+        diff_holes_cell = self.lib.new_cell(diff_holes_cell_name,
+                                            overwrite_duplicate=True)
+        
+        if self.cheese_shape == 0:
+            sx, sy = self.shape_0_x/2, self.shape_0_y/2
+        else:
+            sx, sy = self.shape_1_radius, self.shape_1_radius
+
+        if self.one_hole_cell is not None:
+            intersect_pts_list = [[(xloc-sx, yloc-sy), (xloc+sx, yloc-sy), (xloc+sx, yloc+sy), (xloc-sx, yloc+sy)] for xloc in x_holes for yloc in y_holes]
+            center_list = [(xloc, yloc) for xloc in x_holes for yloc in y_holes]
+            does_intersect_list = gdspy.inside(
+                                    intersect_pts_list,
+                                    temp_keepout_cell, 
+                                    precision=self.precision
+                                    )
+            for idx, ctr in enumerate(center_list):
+                if does_intersect_list[idx] == False:
+                    gather_holes_cell.add(
+                        gdspy.CellReference(self.one_hole_cell,
+                                            origin=ctr))
+                # print(ctr, does_intersect_list[idx])
+
+        diff_holes = gdspy.boolean(gather_holes_cell.get_polygonsets(),
+                                   temp_keepout_cell.get_polygonsets(),
+                                   'not',
+                                   max_points=self.max_points,
+                                   precision=self.precision,
+                                   layer=self.layer,
+                                   datatype=self.datatype_cheese + 1)
+        diff_holes_cell.add(diff_holes)
+
+        self.lib.remove(temp_keepout_chip_layer_cell)
+        self.lib.remove(gather_holes_cell)
+        return diff_holes_cell
+
 
     def _subtract_holes_from_ground(
             self, diff_holes_cell) -> Union[gdspy.library.Cell, None]:
