@@ -291,6 +291,7 @@ class QGDSRenderer(QRenderer):
         # last entry in the dict.  GUI shows a note regarding bound_box.
         bounding_box_scale_x='1.2',
         bounding_box_scale_y='1.2',
+        make_airbridges = True,
     )
     """Default options"""
 
@@ -1193,8 +1194,10 @@ class QGDSRenderer(QRenderer):
         )
 
         # Get all MultiPolygons and render to gds file
+        ladf = len(airbridges_df)
+        print(f'Num AB = {len(airbridges_df)}')
         for _, row in airbridges_df.iterrows():
-            ab_component_multi_poly = row['MultiPoly']
+            ab_component_multi_poly = row['MultiPoly'] 
             ab_component_layer = row['layer']
             airbridge_gds = self._multipolygon_to_gds(
                 multi_poly=ab_component_multi_poly,
@@ -1203,7 +1206,7 @@ class QGDSRenderer(QRenderer):
                 no_cheese_buffer=no_cheese_buffer)
 
             lib_cell.add(airbridge_gds)
-            top_cell.add(gdspy.CellReference(lib_cell))
+        top_cell.add(gdspy.CellReference(lib_cell))
 
     ### End of Airbridging
 
@@ -2328,7 +2331,8 @@ class QGDSRenderer(QRenderer):
 
             # Adds airbridges to CPWs w/ options.gds_make_airbridge = True
             # Options for these airbridges are in self.options.airbridge
-            self._populate_airbridge()
+            if self.options.make_airbridges:
+                self._populate_airbridge()
 
             # Add no-cheese MultiPolygon to
             # self.chip_info[chip_name][chip_layer]['no_cheese'],

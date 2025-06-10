@@ -1070,7 +1070,8 @@ class QAnsysRenderer(QRendererAnalysis):
             table = table[mask]
 
         for _, qgeom in table.iterrows():
-            self.render_element(qgeom, bool(table_type == "junction"), bool(table_type == "wirebond"))
+            if not bool(table_type == "wirebond"):
+                self.render_element(qgeom, bool(table_type == "junction"), bool(table_type == "wirebond"))
 
         if table_type == "path":
             self.auto_wirebonds(table)
