@@ -107,7 +107,7 @@ class CapNInterdigital(QComponent):
 
         #Finger Capacitor
         cap_box = draw.rectangle(N * p.cap_width + (N - 1) * p.cap_gap,
-                                 p.cap_gap + 2 * p.cap_width + p.finger_length,
+                                 p.cap_gap + 2 * p.cap_width + p.finger_length + (0. if self.options.scale_cpw_width_and_gap else 2*p.scaling_distance),
                                  0, 0)
         make_cut_list = []
         make_cut_list.append([0, (p.finger_length) / 2])
@@ -190,6 +190,9 @@ class CapNInterdigital(QComponent):
         
         if self.options.scale_cpw_width_and_gap:
             south_cpw = draw.translate(south_cpw, 0, -2*p.scaling_distance)
+        else:
+            south_cpw = draw.translate(south_cpw, 0, -p.scaling_distance)
+            north_cpw = draw.translate(north_cpw, 0, p.scaling_distance)
 
         #Rotate and Translate
         c_items = [north_cpw, south_cpw, cap_body, cap_etch]
